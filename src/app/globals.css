@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --oj-bg: #f6f3ee;
+  --oj-paper: #ffffff;
+  --oj-ink: #111111;
+  --oj-ink-2: #2a2a2a;
+  --oj-muted: #6f6f6f;
+  --oj-line: rgba(17, 17, 17, 0.12);
+  --oj-khaki: #b89a6a;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--oj-bg);
+  color: var(--oj-ink);
+}
+
+* {
+  outline-color: rgba(184, 154, 106, 0.55);
+}
+
