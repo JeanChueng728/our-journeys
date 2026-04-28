@@ -5,6 +5,12 @@ const DB_VERSION = 1
 const STORE = 'blobs'
 
 const CLOUD_ENABLED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL)
+const ADMIN_PASS_KEY = 'our-journeys:admin-pass'
+
+export function getAdminPassword() {
+  if (typeof window === 'undefined') return 'J54818'
+  return window.localStorage.getItem(ADMIN_PASS_KEY) || 'J54818'
+}
 
 function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`
@@ -56,7 +62,7 @@ export async function uploadToCloud(input: { file: File; kind: 'photo' | 'video'
     const res = await fetch('/api/media/upload', {
       method: 'POST',
       body: form,
-      headers: { 'x-oj-admin-password': 'J54818' },
+      headers: { 'x-oj-admin-password': getAdminPassword() },
     })
     if (!res.ok) return null
     const json = (await res.json()) as { url?: string }

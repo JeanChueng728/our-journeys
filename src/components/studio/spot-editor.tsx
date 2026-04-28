@@ -32,6 +32,13 @@ function parseTags(input: string) {
     .filter(Boolean)
 }
 
+function parseCoord(value: string) {
+  const cleaned = value.trim().replace(',', '.')
+  if (!cleaned) return null
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? n : null
+}
+
 function iconUpload(kind: 'photo' | 'video') {
   if (kind === 'photo') {
     return (
@@ -152,7 +159,10 @@ export function SpotEditor({
     setSearching(false)
   }, [open, mode, ref, trips])
 
-  const canSave = isAdmin && title.trim().length > 0 && !!tripId && !!dateShot && !!lat && !!lng
+  const parsedLat = parseCoord(lat)
+  const parsedLng = parseCoord(lng)
+  const canSave =
+    isAdmin && title.trim().length > 0 && !!tripId && !!dateShot && parsedLat !== null && parsedLng !== null
 
   async function runGeocode(query: string) {
     const q = query.trim()
@@ -350,9 +360,9 @@ export function SpotEditor({
                       ref={mapRef}
                       mapStyle={LIGHT_STYLE}
                       initialViewState={{
-                        latitude: Number(lat) || 26.2,
-                        longitude: Number(lng) || 112.4,
-                        zoom: Number(lat) && Number(lng) ? 9 : 4,
+                        latitude: parsedLat ?? 26.2,
+                        longitude: parsedLng ?? 112.4,
+                        zoom: parsedLat !== null && parsedLng !== null ? 9 : 4,
                       }}
                       onClick={(e: MapLayerMouseEvent) => {
                         setLat(e.lngLat.lat.toFixed(6))
@@ -360,8 +370,8 @@ export function SpotEditor({
                       }}
                       reuseMaps
                     >
-                      {Number(lat) && Number(lng) ? (
-                        <Marker latitude={Number(lat)} longitude={Number(lng)} anchor="center">
+                      {parsedLat !== null && parsedLng !== null ? (
+                        <Marker latitude={parsedLat} longitude={parsedLng} anchor="center">
                           <div className="h-3 w-3 rounded-full bg-[var(--oj-khaki)] shadow-[0_0_0_3px_rgba(184,154,106,0.18)]" />
                         </Marker>
                       ) : null}
@@ -459,8 +469,8 @@ export function SpotEditor({
                     description,
                     location: {
                       name: locationName,
-                      lat: Number(lat),
-                      lng: Number(lng),
+                      lat: parsedLat ?? 0,
+                      lng: parsedLng ?? 0,
                     },
                   },
                 })
@@ -476,8 +486,8 @@ export function SpotEditor({
                 tags: parseTags(tags),
                 description,
                 locationName: locationName || 'Untitled Location',
-                lat: Number(lat),
-                lng: Number(lng),
+                lat: parsedLat ?? 0,
+                lng: parsedLng ?? 0,
               })
 
               const createdTrip = trips.find((t) => t.id === tripId)

@@ -10,7 +10,7 @@ import {
   replaceJourneysState,
   subscribeJourneys,
 } from '@/lib/journeys/store'
-import { dataUrlToBlob, deleteBlob, getBlob, isDataUrl, uploadToCloud } from '@/lib/media'
+import { dataUrlToBlob, deleteBlob, getAdminPassword, getBlob, isDataUrl, uploadToCloud } from '@/lib/media'
 
 const CLOUD_ENABLED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL)
 
@@ -104,7 +104,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
-            'x-oj-admin-password': 'J54818',
+            'x-oj-admin-password': getAdminPassword(),
           },
           body: payload,
         })

@@ -25,6 +25,8 @@ export function StudioDashboard() {
   const trips = useJourneysStore((s) => s.trips)
   const isAdmin = useJourneysStore((s) => s.ui.isAdmin)
   const [newTripOpen, setNewTripOpen] = React.useState(false)
+  const [editTripOpen, setEditTripOpen] = React.useState(false)
+  const [editingTripId, setEditingTripId] = React.useState<string | null>(null)
   const [editorOpen, setEditorOpen] = React.useState(false)
   const [editorMode, setEditorMode] = React.useState<'add' | 'edit'>('add')
   const [editingSpotId, setEditingSpotId] = React.useState<string | null>(null)
@@ -81,6 +83,17 @@ export function StudioDashboard() {
                 key={trip.id}
                 trip={trip}
                 canEdit={isAdmin}
+                onEditTrip={() => {
+                  if (!isAdmin) return
+                  setEditingTripId(trip.id)
+                  setEditTripOpen(true)
+                }}
+                onDeleteTrip={() => {
+                  if (!isAdmin) return
+                  const ok = window.confirm('Delete this trip and all its spots?')
+                  if (!ok) return
+                  JourneysActions.deleteTrip(trip.id)
+                }}
                 onEditSpot={(spotId) => {
                   if (!isAdmin) return
                   setEditorMode('edit')
@@ -100,6 +113,15 @@ export function StudioDashboard() {
       </div>
 
       <NewTripModal open={newTripOpen} onClose={() => setNewTripOpen(false)} />
+      <NewTripModal
+        open={editTripOpen}
+        mode="edit"
+        trip={editingTripId ? trips.find((t) => t.id === editingTripId) ?? null : null}
+        onClose={() => {
+          setEditTripOpen(false)
+          setEditingTripId(null)
+        }}
+      />
       <SpotEditor
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
@@ -113,11 +135,15 @@ export function StudioDashboard() {
 function TripCard({
   trip,
   canEdit,
+  onEditTrip,
+  onDeleteTrip,
   onEditSpot,
   onDeleteSpot,
 }: {
   trip: Trip
   canEdit: boolean
+  onEditTrip: () => void
+  onDeleteTrip: () => void
   onEditSpot: (spotId: string) => void
   onDeleteSpot: (spotId: string) => void
 }) {
@@ -129,6 +155,24 @@ function TripCard({
         <div className="font-[var(--font-cormorant)] text-[22px] font-semibold tracking-[0.04em]">
           {trip.name}
         </div>
+        {canEdit ? (
+          <div className="mt-4 flex items-center justify-center gap-4 text-[12px]">
+            <button
+              type="button"
+              onClick={onEditTrip}
+              className="text-[12px] text-[var(--oj-muted)] hover:text-[var(--oj-ink)]"
+            >
+              Edit Trip
+            </button>
+            <button
+              type="button"
+              onClick={onDeleteTrip}
+              className="text-[12px] text-red-500/90 hover:text-red-600"
+            >
+              Delete Trip
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-8 space-y-10">

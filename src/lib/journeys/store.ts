@@ -131,6 +131,26 @@ export const JourneysActions = {
     return tripId
   },
 
+  updateTripInfo(input: { tripId: string; name: string; startDate: string; endDate: string }) {
+    updateTrip(input.tripId, (trip) => ({
+      ...trip,
+      name: input.name.trim(),
+      startDate: input.startDate,
+      endDate: input.endDate,
+    }))
+  },
+
+  deleteTrip(tripId: string) {
+    setJourneysState((prev) => {
+      const next = clone(prev)
+      next.trips = next.trips.filter((t) => t.id !== tripId)
+      if (next.ui.activeTripId === tripId) {
+        next.ui.activeTripId = next.trips[0]?.id ?? null
+      }
+      return next
+    })
+  },
+
   ensureDay(tripId: string, dayNumber: number) {
     const dayId = uid('day')
     let createdId: string | null = null

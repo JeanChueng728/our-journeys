@@ -110,6 +110,9 @@ export function SiteHeader() {
             onClick={() => {
               if (isAdmin) {
                 JourneysActions.setAdmin(false)
+                if (typeof window !== 'undefined') {
+                  window.localStorage.removeItem('our-journeys:admin-pass')
+                }
                 return
               }
               setPassword('')
@@ -155,6 +158,9 @@ export function SiteHeader() {
                     return
                   }
                   JourneysActions.setAdmin(true)
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.setItem('our-journeys:admin-pass', p)
+                  }
                   setAuthOpen(false)
                 }
               }}
@@ -183,6 +189,9 @@ export function SiteHeader() {
                   return
                 }
                 JourneysActions.setAdmin(true)
+                if (typeof window !== 'undefined') {
+                  window.localStorage.setItem('our-journeys:admin-pass', p)
+                }
                 setAuthOpen(false)
               }}
             >
