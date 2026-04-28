@@ -92,6 +92,8 @@ export function SpotEditor({
   const [tripId, setTripId] = React.useState<string>('')
   const [dayNumber, setDayNumber] = React.useState<number>(1)
   const [dayTitle, setDayTitle] = React.useState<string>('Day 1')
+  const [dayNumberTouched, setDayNumberTouched] = React.useState(false)
+  const [dayTitleTouched, setDayTitleTouched] = React.useState(false)
 
   const [title, setTitle] = React.useState('')
   const [dateShot, setDateShot] = React.useState('')
@@ -124,6 +126,8 @@ export function SpotEditor({
       const day = trips.find((t) => t.id === ref.tripId)?.days.find((d) => d.id === ref.dayId)
       setDayNumber(day?.dayNumber ?? 1)
       setDayTitle(day?.title ?? `Day ${day?.dayNumber ?? 1}`)
+      setDayNumberTouched(false)
+      setDayTitleTouched(false)
       setTitle(ref.spot.title)
       setDateShot(ref.spot.dateShot)
       setTags(ref.spot.tags.join(', '))
@@ -144,6 +148,8 @@ export function SpotEditor({
     setTripId(initialTrip?.id ?? '')
     setDayNumber(1)
     setDayTitle('Day 1')
+    setDayNumberTouched(false)
+    setDayTitleTouched(false)
     setTitle('')
     setDateShot(new Date().toISOString().slice(0, 10))
     setTags('')
@@ -158,6 +164,27 @@ export function SpotEditor({
     setSearchResults([])
     setSearching(false)
   }, [open, mode, ref, trips])
+
+  React.useEffect(() => {
+    if (!open) return
+    if (mode !== 'add') return
+    const trip = trips.find((t) => t.id === tripId)
+    if (!trip) return
+    const partsA = trip.startDate.split('-').map((x) => Number(x))
+    const partsB = dateShot.split('-').map((x) => Number(x))
+    if (partsA.length !== 3 || partsB.length !== 3) return
+    const [y1, m1, d1] = partsA
+    const [y2, m2, d2] = partsB
+    if (![y1, m1, d1, y2, m2, d2].every((x) => Number.isFinite(x))) return
+    const a = Math.floor(Date.UTC(y1, m1 - 1, d1) / 86400000)
+    const b = Math.floor(Date.UTC(y2, m2 - 1, d2) / 86400000)
+    const computed = Math.max(1, b - a + 1)
+    if (!dayNumberTouched) setDayNumber(computed)
+    if (!dayTitleTouched) {
+      const existing = trip.days.find((d) => d.dayNumber === computed)
+      setDayTitle(existing?.title ?? `Day ${computed}`)
+    }
+  }, [open, mode, tripId, dateShot, trips, dayNumberTouched, dayTitleTouched])
 
   const parsedLat = parseCoord(lat)
   const parsedLng = parseCoord(lng)
@@ -243,12 +270,21 @@ export function SpotEditor({
                   <Input
                     inputMode="numeric"
                     value={String(dayNumber)}
-                    onChange={(e) => setDayNumber(Math.max(1, Number(e.target.value || 1)))}
+                    onChange={(e) => {
+                      setDayNumberTouched(true)
+                      setDayNumber(Math.max(1, Number(e.target.value || 1)))
+                    }}
                   />
                 </div>
                 <div className="col-span-2 space-y-2">
                   <Label>DAY TITLE</Label>
-                  <Input value={dayTitle} onChange={(e) => setDayTitle(e.target.value)} />
+                  <Input
+                    value={dayTitle}
+                    onChange={(e) => {
+                      setDayTitleTouched(true)
+                      setDayTitle(e.target.value)
+                    }}
+                  />
                 </div>
               </div>
             ) : null}
