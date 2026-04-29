@@ -32,6 +32,24 @@ function dayIndex(value: string | undefined) {
   return Math.floor(Date.UTC(y, m - 1, d) / 86400000)
 }
 
+function uidTimestamp(id: string) {
+  const parts = id.split('_')
+  const hex = parts[parts.length - 1]
+  if (!hex) return 0
+  const n = Number.parseInt(hex, 16)
+  return Number.isFinite(n) ? n : 0
+}
+
+function latestSpotCreatedAt(trip: Trip) {
+  let max = 0
+  for (const day of trip.days) {
+    for (const spot of day.spots) {
+      max = Math.max(max, uidTimestamp(spot.id))
+    }
+  }
+  return max
+}
+
 function tripSpanDays(trip: Trip) {
   const a = dayIndex(trip.startDate)
   const b = dayIndex(trip.endDate)
@@ -63,9 +81,14 @@ export function CollectionsView() {
     const sorted = trips
       .slice()
       .sort((a, b) => {
+        const aLast = latestSpotCreatedAt(a)
+        const bLast = latestSpotCreatedAt(b)
+        if (aLast !== bLast) return bLast - aLast
+
         const aIdx = dayIndex(a.startDate) ?? 0
         const bIdx = dayIndex(b.startDate) ?? 0
         if (aIdx !== bIdx) return bIdx - aIdx
+
         return a.name.localeCompare(b.name)
       })
 
