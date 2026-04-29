@@ -5,6 +5,7 @@ export const SEED_STATE: JourneysState = {
   ui: {
     activeTripId: 'trip_gx_2024',
     isAdmin: false,
+    pinnedTripIds: [],
   },
   trips: [
     {

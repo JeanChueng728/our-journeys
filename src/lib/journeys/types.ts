@@ -45,5 +45,6 @@ export type JourneysState = {
   ui: {
     activeTripId: string | null
     isAdmin: boolean
+    pinnedTripIds: string[]
   }
 }

@@ -26,7 +26,7 @@ function clone<T>(value: T): T {
   return structuredClone(value)
 }
 
-function normalizeState(raw: unknown): JourneysState | null {
+export function normalizeIncomingState(raw: unknown): JourneysState | null {
   if (!raw || typeof raw !== 'object') return null
   const v = (raw as any).version
   if (v !== 1) return null
@@ -34,9 +34,13 @@ function normalizeState(raw: unknown): JourneysState | null {
   const uiRaw = (raw as any).ui
   const activeTripId = uiRaw?.activeTripId ?? null
   const isAdmin = Boolean(uiRaw?.isAdmin ?? false)
+  const pinnedTripIds: string[] = Array.isArray(uiRaw?.pinnedTripIds)
+    ? (uiRaw.pinnedTripIds as unknown[]).filter((x): x is string => typeof x === 'string')
+    : []
+  const uniqPinned: string[] = Array.from(new Set<string>(pinnedTripIds)).slice(0, 3)
   return {
     ...(raw as JourneysState),
-    ui: { activeTripId, isAdmin },
+    ui: { activeTripId, isAdmin, pinnedTripIds: uniqPinned },
   }
 }
 
@@ -59,7 +63,7 @@ export function hydrateFromStorage() {
   if (typeof window === 'undefined') return
   const raw = window.localStorage.getItem(STORAGE_KEY)
   if (!raw) return
-  const parsed = normalizeState(safeParse(raw))
+  const parsed = normalizeIncomingState(safeParse(raw))
   if (!parsed) return
   state = parsed
   emit()
@@ -107,6 +111,31 @@ export const JourneysActions = {
 
   setAdmin(isAdmin: boolean) {
     setJourneysState((prev) => ({ ...prev, ui: { ...prev.ui, isAdmin } }))
+  },
+
+  togglePinnedTrip(tripId: string) {
+    setJourneysState((prev) => {
+      const existing = prev.ui.pinnedTripIds ?? []
+      const idx = existing.indexOf(tripId)
+      const nextPinned =
+        idx >= 0 ? existing.filter((x) => x !== tripId) : [tripId, ...existing.filter((x) => x !== tripId)].slice(0, 3)
+      return { ...prev, ui: { ...prev.ui, pinnedTripIds: nextPinned } }
+    })
+  },
+
+  movePinnedTrip(input: { tripId: string; direction: -1 | 1 }) {
+    setJourneysState((prev) => {
+      const existing = prev.ui.pinnedTripIds ?? []
+      const idx = existing.indexOf(input.tripId)
+      if (idx < 0) return prev
+      const nextIdx = idx + input.direction
+      if (nextIdx < 0 || nextIdx >= existing.length) return prev
+      const next = existing.slice()
+      const tmp = next[idx]
+      next[idx] = next[nextIdx]
+      next[nextIdx] = tmp
+      return { ...prev, ui: { ...prev.ui, pinnedTripIds: next } }
+    })
   },
 
   replaceState(next: JourneysState) {

@@ -148,6 +148,8 @@ function TripCard({
   onDeleteSpot: (spotId: string) => void
 }) {
   const days = trip.days.slice().sort((a, b) => a.dayNumber - b.dayNumber)
+  const pinnedTripIds = useJourneysStore((s) => s.ui.pinnedTripIds)
+  const pinIndex = pinnedTripIds.indexOf(trip.id)
 
   return (
     <div className="mx-auto w-full max-w-[920px] rounded-sm border border-[var(--oj-line)] bg-white/60 px-10 py-10 shadow-[0_16px_40px_rgba(0,0,0,0.04)]">
@@ -157,6 +159,33 @@ function TripCard({
         </div>
         {canEdit ? (
           <div className="mt-4 flex items-center justify-center gap-4 text-[12px]">
+            <button
+              type="button"
+              onClick={() => JourneysActions.togglePinnedTrip(trip.id)}
+              className="text-[12px] text-[var(--oj-muted)] hover:text-[var(--oj-ink)]"
+            >
+              {pinIndex >= 0 ? `Unpin #${pinIndex + 1}` : 'Pin'}
+            </button>
+            {pinIndex >= 0 ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => JourneysActions.movePinnedTrip({ tripId: trip.id, direction: -1 })}
+                  disabled={pinIndex === 0}
+                  className="text-[12px] text-[var(--oj-muted)] hover:text-[var(--oj-ink)] disabled:opacity-40"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => JourneysActions.movePinnedTrip({ tripId: trip.id, direction: 1 })}
+                  disabled={pinIndex === pinnedTripIds.length - 1}
+                  className="text-[12px] text-[var(--oj-muted)] hover:text-[var(--oj-ink)] disabled:opacity-40"
+                >
+                  ↓
+                </button>
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={onEditTrip}

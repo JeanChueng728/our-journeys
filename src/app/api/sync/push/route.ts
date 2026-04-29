@@ -14,7 +14,11 @@ function normalizeState(raw: unknown) {
   if (!isObject(raw.ui)) return null
   const activeTripId = (raw.ui as any).activeTripId ?? null
   const isAdmin = Boolean((raw.ui as any).isAdmin ?? false)
-  return { ...(raw as any), ui: { activeTripId, isAdmin } }
+  const pinnedTripIds: string[] = Array.isArray((raw.ui as any).pinnedTripIds)
+    ? ((raw.ui as any).pinnedTripIds as unknown[]).filter((x): x is string => typeof x === 'string')
+    : []
+  const uniqPinned: string[] = Array.from(new Set<string>(pinnedTripIds)).slice(0, 3)
+  return { ...(raw as any), ui: { activeTripId, isAdmin, pinnedTripIds: uniqPinned } }
 }
 
 export async function POST(req: Request) {

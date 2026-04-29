@@ -75,10 +75,21 @@ function computeDayNumberBySpan(trip: Trip, dateShot: string, allDates: string[]
 export function CollectionsView() {
   const trips = useJourneysStore((s) => s.trips)
   const activeTrip = useJourneysStore((s) => getActiveTrip(s))
+  const pinnedTripIds = useJourneysStore((s) => s.ui.pinnedTripIds)
   const [query, setQuery] = React.useState('')
 
   const visibleTrips = React.useMemo(() => {
-    const sorted = trips
+    const q = query.trim().toLowerCase()
+    const matches = (t: Trip) => (q ? t.name.toLowerCase().includes(q) : true)
+    const pinnedSet = new Set(pinnedTripIds)
+    const pinned: Trip[] = pinnedTripIds
+      .map((id) => trips.find((t) => t.id === id))
+      .filter((t): t is Trip => Boolean(t))
+      .filter(matches)
+
+    const rest = trips
+      .filter((t) => !pinnedSet.has(t.id))
+      .filter(matches)
       .slice()
       .sort((a, b) => {
         const aLast = latestSpotCreatedAt(a)
@@ -92,10 +103,8 @@ export function CollectionsView() {
         return a.name.localeCompare(b.name)
       })
 
-    const q = query.trim().toLowerCase()
-    if (!q) return sorted
-    return sorted.filter((t) => t.name.toLowerCase().includes(q))
-  }, [trips, query])
+    return [...pinned, ...rest]
+  }, [trips, query, pinnedTripIds])
 
   React.useEffect(() => {
     if (!activeTrip && visibleTrips.length > 0) {
