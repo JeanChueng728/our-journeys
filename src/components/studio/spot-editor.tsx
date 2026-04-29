@@ -39,6 +39,35 @@ function parseCoord(value: string) {
   return Number.isFinite(n) ? n : null
 }
 
+function dayIndex(value: string | undefined) {
+  if (!value) return null
+  const parts = value.split('-').map((x) => Number(x))
+  if (parts.length !== 3) return null
+  const [y, m, d] = parts
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
+  return Math.floor(Date.UTC(y, m - 1, d) / 86400000)
+}
+
+function tripSpanDays(startDate: string, endDate: string) {
+  const a = dayIndex(startDate)
+  const b = dayIndex(endDate)
+  if (a === null || b === null) return null
+  return Math.max(1, b - a + 1)
+}
+
+function computeDayNumberBySpan(input: { startDate: string; endDate: string; dateShot: string; allDates: string[] }) {
+  const span = tripSpanDays(input.startDate, input.endDate)
+  if (span !== null && span <= 45) {
+    const a = dayIndex(input.startDate)
+    const b = dayIndex(input.dateShot)
+    if (a === null || b === null) return 1
+    return Math.max(1, b - a + 1)
+  }
+  const uniq = Array.from(new Set(input.allDates.filter(Boolean))).sort()
+  const idx = uniq.indexOf(input.dateShot)
+  return idx >= 0 ? idx + 1 : uniq.length + 1
+}
+
 function iconUpload(kind: 'photo' | 'video') {
   if (kind === 'photo') {
     return (
@@ -92,6 +121,8 @@ export function SpotEditor({
   const [tripId, setTripId] = React.useState<string>('')
   const [dayNumber, setDayNumber] = React.useState<number>(1)
   const [dayTitle, setDayTitle] = React.useState<string>('Day 1')
+  const [dayNumberTouched, setDayNumberTouched] = React.useState(false)
+  const [dayTitleTouched, setDayTitleTouched] = React.useState(false)
 
   const [title, setTitle] = React.useState('')
   const [dateShot, setDateShot] = React.useState('')
@@ -124,6 +155,8 @@ export function SpotEditor({
       const day = trips.find((t) => t.id === ref.tripId)?.days.find((d) => d.id === ref.dayId)
       setDayNumber(day?.dayNumber ?? 1)
       setDayTitle(day?.title ?? `Day ${day?.dayNumber ?? 1}`)
+      setDayNumberTouched(false)
+      setDayTitleTouched(false)
       setTitle(ref.spot.title)
       setDateShot(ref.spot.dateShot)
       setTags(ref.spot.tags.join(', '))
@@ -144,6 +177,8 @@ export function SpotEditor({
     setTripId(initialTrip?.id ?? '')
     setDayNumber(1)
     setDayTitle('Day 1')
+    setDayNumberTouched(false)
+    setDayTitleTouched(false)
     setTitle('')
     setDateShot(new Date().toISOString().slice(0, 10))
     setTags('')
@@ -158,6 +193,25 @@ export function SpotEditor({
     setSearchResults([])
     setSearching(false)
   }, [open, mode, ref, trips])
+
+  React.useEffect(() => {
+    if (!open) return
+    if (mode !== 'add') return
+    const trip = trips.find((t) => t.id === tripId)
+    if (!trip) return
+    const allDates = trip.days.flatMap((d) => d.spots.map((s) => s.dateShot)).concat(dateShot)
+    const computed = computeDayNumberBySpan({
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      dateShot,
+      allDates,
+    })
+    if (!dayNumberTouched) setDayNumber(computed)
+    if (!dayTitleTouched) {
+      const existing = trip.days.find((d) => d.dayNumber === computed)
+      setDayTitle(existing?.title ?? `Day ${computed}`)
+    }
+  }, [open, mode, tripId, dateShot, trips, dayNumberTouched, dayTitleTouched])
 
   const parsedLat = parseCoord(lat)
   const parsedLng = parseCoord(lng)
@@ -243,12 +297,21 @@ export function SpotEditor({
                   <Input
                     inputMode="numeric"
                     value={String(dayNumber)}
-                    onChange={(e) => setDayNumber(Math.max(1, Number(e.target.value || 1)))}
+                    onChange={(e) => {
+                      setDayNumberTouched(true)
+                      setDayNumber(Math.max(1, Number(e.target.value || 1)))
+                    }}
                   />
                 </div>
                 <div className="col-span-2 space-y-2">
                   <Label>DAY TITLE</Label>
-                  <Input value={dayTitle} onChange={(e) => setDayTitle(e.target.value)} />
+                  <Input
+                    value={dayTitle}
+                    onChange={(e) => {
+                      setDayTitleTouched(true)
+                      setDayTitle(e.target.value)
+                    }}
+                  />
                 </div>
               </div>
             ) : null}

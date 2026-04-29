@@ -31,11 +31,26 @@ function dayIndex(value: string | undefined) {
   return Math.floor(Date.UTC(y, m - 1, d) / 86400000)
 }
 
-function computeDayNumber(startDate: string, dateShot: string) {
-  const a = dayIndex(startDate)
-  const b = dayIndex(dateShot)
-  if (a === null || b === null) return 1
+function tripSpanDays(trip: Trip) {
+  const a = dayIndex(trip.startDate)
+  const b = dayIndex(trip.endDate)
+  if (a === null || b === null) return null
   return Math.max(1, b - a + 1)
+}
+
+function computeDayNumberBySpan(trip: Trip, dateShot: string, allDates: string[]) {
+  const span = tripSpanDays(trip)
+
+  if (span !== null && span <= 45) {
+    const a = dayIndex(trip.startDate)
+    const b = dayIndex(dateShot)
+    if (a === null || b === null) return 1
+    return Math.max(1, b - a + 1)
+  }
+
+  const uniq = Array.from(new Set(allDates.filter(Boolean))).sort()
+  const idx = uniq.indexOf(dateShot)
+  return idx >= 0 ? idx + 1 : uniq.length + 1
 }
 
 export function CollectionsView() {
@@ -52,10 +67,12 @@ export function CollectionsView() {
     const titleByNumber = new Map<number, string>()
     for (const d of activeTrip.days) titleByNumber.set(d.dayNumber, d.title)
 
+    const allDates = activeTrip.days.flatMap((d) => d.spots.map((s) => s.dateShot))
+
     const grouped = new Map<number, Spot[]>()
     for (const day of activeTrip.days) {
       for (const spot of day.spots) {
-        const n = computeDayNumber(activeTrip.startDate, spot.dateShot)
+        const n = computeDayNumberBySpan(activeTrip, spot.dateShot, allDates)
         const list = grouped.get(n) ?? []
         list.push(spot)
         grouped.set(n, list)
