@@ -7,7 +7,6 @@ import {
   getJourneysState,
   hydrateFromStorage,
   JourneysActions,
-  normalizeIncomingState,
   replaceJourneysState,
   subscribeJourneys,
 } from '@/lib/journeys/store'
@@ -34,7 +33,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
         const json = (await res.json()) as { state?: unknown }
         if (!active) return
         if (json.state && typeof json.state === 'object') {
-          replaceJourneysState(normalizeIncomingState(json.state) ?? (json.state as any))
+          replaceJourneysState(json.state as any)
         }
       } finally {
         suppressPush.current = false

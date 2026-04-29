@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Button } from '@/components/ui/button'
 import { JourneysActions, getActiveTrip, useJourneysStore } from '@/lib/journeys/store'
-import type { Trip } from '@/lib/journeys/types'
+import type { Spot, Trip } from '@/lib/journeys/types'
 import { SpotCarousel } from './spot-carousel'
 
 function TripChip({ trip, active }: { trip: Trip; active: boolean }) {
@@ -22,6 +22,22 @@ function TripChip({ trip, active }: { trip: Trip; active: boolean }) {
   )
 }
 
+function dayIndex(value: string | undefined) {
+  if (!value) return null
+  const parts = value.split('-').map((x) => Number(x))
+  if (parts.length !== 3) return null
+  const [y, m, d] = parts
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
+  return Math.floor(Date.UTC(y, m - 1, d) / 86400000)
+}
+
+function computeDayNumber(startDate: string, dateShot: string) {
+  const a = dayIndex(startDate)
+  const b = dayIndex(dateShot)
+  if (a === null || b === null) return 1
+  return Math.max(1, b - a + 1)
+}
+
 export function CollectionsView() {
   const trips = useJourneysStore((s) => s.trips)
   const activeTrip = useJourneysStore((s) => getActiveTrip(s))
@@ -29,6 +45,31 @@ export function CollectionsView() {
   React.useEffect(() => {
     if (!activeTrip && trips.length > 0) JourneysActions.setActiveTrip(trips[0].id)
   }, [activeTrip, trips])
+
+  const groupedDays = React.useMemo(() => {
+    if (!activeTrip) return []
+
+    const titleByNumber = new Map<number, string>()
+    for (const d of activeTrip.days) titleByNumber.set(d.dayNumber, d.title)
+
+    const grouped = new Map<number, Spot[]>()
+    for (const day of activeTrip.days) {
+      for (const spot of day.spots) {
+        const n = computeDayNumber(activeTrip.startDate, spot.dateShot)
+        const list = grouped.get(n) ?? []
+        list.push(spot)
+        grouped.set(n, list)
+      }
+    }
+
+    return Array.from(grouped.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([dayNumber, spots]) => ({
+        dayNumber,
+        title: titleByNumber.get(dayNumber) ?? `Day ${dayNumber}`,
+        spots: spots.slice().sort((a, b) => a.dateShot.localeCompare(b.dateShot)),
+      }))
+  }, [activeTrip])
 
   if (!activeTrip) {
     return (
@@ -71,36 +112,32 @@ export function CollectionsView() {
           <div className="absolute left-[22px] top-0 h-full w-px bg-[var(--oj-line)]" />
 
           <div className="space-y-16 pb-10">
-            {activeTrip.days
-              .slice()
-              .sort((a, b) => a.dayNumber - b.dayNumber)
-              .map((day) => (
-                <section key={day.id} className="relative grid grid-cols-[110px_1fr] gap-10">
-                  <div className="relative">
-                    <div className="absolute left-[6px] top-3 h-12 w-12 rounded-full border border-[var(--oj-khaki)] bg-[var(--oj-bg)]">
-                      <div className="flex h-full w-full items-center justify-center text-[10px] tracking-[0.22em] text-[var(--oj-muted)]">
-                        D{day.dayNumber}
-                      </div>
+            {groupedDays.map((day) => (
+              <section key={`day_${day.dayNumber}`} className="relative grid grid-cols-[110px_1fr] gap-10">
+                <div className="relative">
+                  <div className="absolute left-[6px] top-3 h-12 w-12 rounded-full border border-[var(--oj-khaki)] bg-[var(--oj-bg)]">
+                    <div className="flex h-full w-full items-center justify-center text-[10px] tracking-[0.22em] text-[var(--oj-muted)]">
+                      D{day.dayNumber}
                     </div>
                   </div>
+                </div>
 
-                  <div>
-                    <div className="mb-8 text-center font-[var(--font-cormorant)] text-[20px] font-medium tracking-[0.06em] text-[var(--oj-ink-2)]">
-                      {day.title}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-10">
-                      {day.spots.map((spot) => (
-                        <SpotCarousel key={spot.id} spot={spot} />
-                      ))}
-                    </div>
+                <div>
+                  <div className="mb-8 text-center font-[var(--font-cormorant)] text-[20px] font-medium tracking-[0.06em] text-[var(--oj-ink-2)]">
+                    {day.title}
                   </div>
-                </section>
-              ))}
+
+                  <div className="grid grid-cols-2 gap-10">
+                    {day.spots.map((spot) => (
+                      <SpotCarousel key={spot.id} spot={spot} />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            ))}
           </div>
         </div>
       </div>
     </div>
   )
 }
-

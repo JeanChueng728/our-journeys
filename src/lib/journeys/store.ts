@@ -26,7 +26,7 @@ function clone<T>(value: T): T {
   return structuredClone(value)
 }
 
-export function normalizeIncomingState(raw: unknown): JourneysState | null {
+function normalizeState(raw: unknown): JourneysState | null {
   if (!raw || typeof raw !== 'object') return null
   const v = (raw as any).version
   if (v !== 1) return null
@@ -34,68 +34,8 @@ export function normalizeIncomingState(raw: unknown): JourneysState | null {
   const uiRaw = (raw as any).ui
   const activeTripId = uiRaw?.activeTripId ?? null
   const isAdmin = Boolean(uiRaw?.isAdmin ?? false)
-
-  function dayIndex(value: string | undefined) {
-    if (!value) return null
-    const parts = value.split('-').map((x) => Number(x))
-    if (parts.length !== 3) return null
-    const [y, m, d] = parts
-    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
-    return Math.floor(Date.UTC(y, m - 1, d) / 86400000)
-  }
-
-  function regroupTripIfNeeded(trip: Trip): Trip {
-    const start = dayIndex(trip.startDate)
-    if (start === null) return trip
-    const dayTitleByNumber = new Map<number, string>()
-    for (const day of trip.days) {
-      if (typeof day.dayNumber === 'number' && Number.isFinite(day.dayNumber)) {
-        dayTitleByNumber.set(day.dayNumber, day.title)
-      }
-    }
-
-    let mismatch = false
-    for (const day of trip.days) {
-      for (const spot of day.spots) {
-        const idx = dayIndex(spot.dateShot)
-        if (idx === null) continue
-        const computed = Math.max(1, idx - start + 1)
-        if (computed !== day.dayNumber) mismatch = true
-      }
-    }
-    if (!mismatch) return trip
-
-    const spots: Array<{ spot: Spot; computedDay: number }> = []
-    for (const day of trip.days) {
-      for (const spot of day.spots) {
-        const idx = dayIndex(spot.dateShot)
-        const computed = idx === null ? day.dayNumber : Math.max(1, idx - start + 1)
-        spots.push({ spot, computedDay: computed })
-      }
-    }
-
-    const grouped = new Map<number, Spot[]>()
-    for (const x of spots) {
-      const list = grouped.get(x.computedDay) ?? []
-      list.push(x.spot)
-      grouped.set(x.computedDay, list)
-    }
-
-    const nextDays: Day[] = Array.from(grouped.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([dayNumber, spots]) => ({
-        id: uid('day'),
-        dayNumber,
-        title: dayTitleByNumber.get(dayNumber) ?? `Day ${dayNumber}`,
-        spots,
-      }))
-
-    return { ...trip, days: nextDays }
-  }
-
   return {
     ...(raw as JourneysState),
-    trips: (raw as JourneysState).trips.map((t) => regroupTripIfNeeded(t)),
     ui: { activeTripId, isAdmin },
   }
 }
@@ -119,7 +59,7 @@ export function hydrateFromStorage() {
   if (typeof window === 'undefined') return
   const raw = window.localStorage.getItem(STORAGE_KEY)
   if (!raw) return
-  const parsed = normalizeIncomingState(safeParse(raw))
+  const parsed = normalizeState(safeParse(raw))
   if (!parsed) return
   state = parsed
   emit()
@@ -209,28 +149,6 @@ export const JourneysActions = {
       }
       return next
     })
-  },
-
-  moveSpot(input: { tripId: string; fromDayId: string; spotId: string; toDayNumber: number }) {
-    const toDayId = JourneysActions.ensureDay(input.tripId, input.toDayNumber)
-    updateTrip(input.tripId, (trip) => {
-      let moving: Spot | null = null
-      const daysRemoved = trip.days.map((d) => {
-        if (d.id !== input.fromDayId) return d
-        const nextSpots = d.spots.filter((s) => {
-          if (s.id !== input.spotId) return true
-          moving = s
-          return false
-        })
-        return { ...d, spots: nextSpots }
-      })
-      if (!moving) return trip
-      const daysAdded = daysRemoved.map((d) =>
-        d.id === toDayId ? { ...d, spots: [...d.spots, moving as Spot] } : d,
-      )
-      return { ...trip, days: daysAdded.filter((d) => d.spots.length > 0) }
-    })
-    return toDayId
   },
 
   ensureDay(tripId: string, dayNumber: number) {
