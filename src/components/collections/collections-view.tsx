@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { JourneysActions, getActiveTrip, useJourneysStore } from '@/lib/journeys/store'
 import type { Spot, Trip } from '@/lib/journeys/types'
 import { SpotCarousel } from './spot-carousel'
@@ -56,10 +57,32 @@ function computeDayNumberBySpan(trip: Trip, dateShot: string, allDates: string[]
 export function CollectionsView() {
   const trips = useJourneysStore((s) => s.trips)
   const activeTrip = useJourneysStore((s) => getActiveTrip(s))
+  const [query, setQuery] = React.useState('')
+
+  const visibleTrips = React.useMemo(() => {
+    const sorted = trips
+      .slice()
+      .sort((a, b) => {
+        const aIdx = dayIndex(a.startDate) ?? 0
+        const bIdx = dayIndex(b.startDate) ?? 0
+        if (aIdx !== bIdx) return bIdx - aIdx
+        return a.name.localeCompare(b.name)
+      })
+
+    const q = query.trim().toLowerCase()
+    if (!q) return sorted
+    return sorted.filter((t) => t.name.toLowerCase().includes(q))
+  }, [trips, query])
 
   React.useEffect(() => {
-    if (!activeTrip && trips.length > 0) JourneysActions.setActiveTrip(trips[0].id)
-  }, [activeTrip, trips])
+    if (!activeTrip && visibleTrips.length > 0) {
+      JourneysActions.setActiveTrip(visibleTrips[0].id)
+      return
+    }
+    if (activeTrip && visibleTrips.length > 0 && !visibleTrips.some((t) => t.id === activeTrip.id)) {
+      JourneysActions.setActiveTrip(visibleTrips[0].id)
+    }
+  }, [activeTrip, visibleTrips])
 
   const groupedDays = React.useMemo(() => {
     if (!activeTrip) return []
@@ -114,11 +137,22 @@ export function CollectionsView() {
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-3">
-          {trips.map((t) => (
-            <TripChip key={t.id} trip={t} active={t.id === activeTrip.id} />
-          ))}
+      <div className="flex items-center justify-between gap-6">
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <div className="flex w-max items-center gap-3 pr-2">
+            {visibleTrips.map((t) => (
+              <TripChip key={t.id} trip={t} active={t.id === activeTrip.id} />
+            ))}
+          </div>
+        </div>
+
+        <div className="w-[240px] shrink-0">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索行程..."
+            className="h-10 bg-white/55 text-[12px]"
+          />
         </div>
       </div>
 
