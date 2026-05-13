@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { JourneysActions, getActiveTrip, useJourneysStore } from '@/lib/journeys/store'
 import type { Spot, Trip } from '@/lib/journeys/types'
+import { useResolvedMediaSrc } from '@/lib/media'
 import { SpotCarousel } from './spot-carousel'
 
 function dayIndex(value: string | undefined) {
@@ -68,6 +69,30 @@ function firstCoverSrc(trip: Trip) {
 
 function totalSpots(trip: Trip) {
   return trip.days.reduce((sum, d) => sum + d.spots.length, 0)
+}
+
+function TripCover({ src, alt }: { src: string; alt: string }) {
+  const resolved = useResolvedMediaSrc(src)
+  if (!resolved) return null
+  const remote = resolved.startsWith('http://') || resolved.startsWith('https://')
+  return remote ? (
+    <Image
+      src={resolved}
+      alt={alt}
+      width={1600}
+      height={1000}
+      className="h-full w-full object-cover"
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+    />
+  ) : (
+    <img
+      src={resolved}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      className="h-full w-full object-cover"
+    />
+  )
 }
 
 export function CollectionsView() {
@@ -176,7 +201,6 @@ export function CollectionsView() {
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {visibleTrips.map((t) => {
           const cover = firstCoverSrc(t)
-          const coverOptimizable = Boolean(cover && (cover.startsWith('http://') || cover.startsWith('https://')))
           const active = t.id === activeTrip.id
           return (
             <button
@@ -189,17 +213,7 @@ export function CollectionsView() {
               ].join(' ')}
             >
               <div className="aspect-[16/10] bg-[var(--oj-bg)]">
-                {cover ? (
-                  <Image
-                    src={cover}
-                    alt={t.name}
-                    width={1600}
-                    height={1000}
-                    className="h-full w-full object-cover"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    unoptimized={!coverOptimizable}
-                  />
-                ) : null}
+                {cover ? <TripCover src={cover} alt={t.name} /> : null}
               </div>
               <div className="p-4">
                 <div className="text-sm text-[var(--oj-muted)]">
