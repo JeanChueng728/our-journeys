@@ -75,8 +75,7 @@ export async function uploadToCloud(input: { file: File; kind: 'photo' | 'video'
 export async function putMediaFile(input: { file: File; kind: 'photo' | 'video' }) {
   const cloudUrl = await uploadToCloud(input)
   if (cloudUrl) return cloudUrl
-  if (input.kind === 'video') return await putBlob(input.file)
-  return await readAsDataUrl(input.file)
+  return await putBlob(input.file)
 }
 
 export async function getBlob(ref: string) {

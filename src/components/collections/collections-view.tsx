@@ -2,26 +2,10 @@
 
 import * as React from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import Image from 'next/image'
 import { JourneysActions, getActiveTrip, useJourneysStore } from '@/lib/journeys/store'
 import type { Spot, Trip } from '@/lib/journeys/types'
 import { SpotCarousel } from './spot-carousel'
-
-function TripChip({ trip, active }: { trip: Trip; active: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={() => JourneysActions.setActiveTrip(trip.id)}
-      className={
-        active
-          ? 'h-10 rounded-sm border border-[#111] bg-[#111] px-6 text-[11px] tracking-[0.32em] text-white'
-          : 'h-10 rounded-sm border border-[var(--oj-line)] bg-white/55 px-6 text-[11px] tracking-[0.32em] text-[var(--oj-ink)] hover:bg-white'
-      }
-    >
-      {trip.name}
-    </button>
-  )
-}
 
 function dayIndex(value: string | undefined) {
   if (!value) return null
@@ -72,24 +56,33 @@ function computeDayNumberBySpan(trip: Trip, dateShot: string, allDates: string[]
   return idx >= 0 ? idx + 1 : uniq.length + 1
 }
 
+function firstCoverSrc(trip: Trip) {
+  for (const d of trip.days) {
+    for (const s of d.spots) {
+      const m = s.media[0]
+      if (m?.src) return m.src
+    }
+  }
+  return null
+}
+
+function totalSpots(trip: Trip) {
+  return trip.days.reduce((sum, d) => sum + d.spots.length, 0)
+}
+
 export function CollectionsView() {
   const trips = useJourneysStore((s) => s.trips)
   const activeTrip = useJourneysStore((s) => getActiveTrip(s))
   const pinnedTripIds = useJourneysStore((s) => s.ui.pinnedTripIds)
-  const [query, setQuery] = React.useState('')
 
   const visibleTrips = React.useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const matches = (t: Trip) => (q ? t.name.toLowerCase().includes(q) : true)
     const pinnedSet = new Set(pinnedTripIds)
     const pinned: Trip[] = pinnedTripIds
       .map((id) => trips.find((t) => t.id === id))
       .filter((t): t is Trip => Boolean(t))
-      .filter(matches)
 
     const rest = trips
       .filter((t) => !pinnedSet.has(t.id))
-      .filter(matches)
       .slice()
       .sort((a, b) => {
         const aLast = latestSpotCreatedAt(a)
@@ -104,7 +97,7 @@ export function CollectionsView() {
       })
 
     return [...pinned, ...rest]
-  }, [trips, query, pinnedTripIds])
+  }, [trips, pinnedTripIds])
 
   React.useEffect(() => {
     if (!activeTrip && visibleTrips.length > 0) {
@@ -146,21 +139,22 @@ export function CollectionsView() {
   if (!activeTrip) {
     return (
       <div className="mx-auto max-w-[1120px] border border-[var(--oj-line)] bg-white/60 p-10">
-        <div className="text-[12px] tracking-[0.32em] text-[var(--oj-muted)]">
-          No trips yet.
-        </div>
+        <div className="text-sm text-[var(--oj-muted)]">还没有旅行记录。</div>
         <div className="mt-6">
           <Button
             variant="primary"
             onClick={() =>
-              JourneysActions.createTrip({
-                name: 'NEW TRIP',
-                startDate: new Date().toISOString().slice(0, 10),
-                endDate: new Date().toISOString().slice(0, 10),
-              })
+              (() => {
+                const today = new Date().toISOString().slice(0, 10)
+                JourneysActions.createTrip({
+                  name: 'NEW TRIP',
+                  startDate: today,
+                  endDate: today,
+                })
+              })()
             }
           >
-            NEW TRIP
+            新建旅行
           </Button>
         </div>
       </div>
@@ -168,58 +162,75 @@ export function CollectionsView() {
   }
 
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between gap-6">
-        <div className="min-w-0 flex-1 overflow-x-auto">
-          <div className="flex w-max items-center gap-3 pr-2">
-            {visibleTrips.map((t) => (
-              <TripChip key={t.id} trip={t} active={t.id === activeTrip.id} />
-            ))}
+    <div className="mx-auto w-full max-w-[1120px]">
+      <div className="flex items-end justify-between gap-6">
+        <div>
+          <div className="text-xs tracking-[0.22em] text-[var(--oj-muted)]">COLLECTIONS</div>
+          <div className="mt-2 font-[var(--font-cormorant)] text-[32px] font-medium text-[var(--oj-ink)]">
+            旅行杂志
           </div>
         </div>
-
-        <div className="w-[240px] shrink-0">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索行程..."
-            className="h-10 bg-white/55 text-[12px]"
-          />
-        </div>
+        <div className="text-sm text-[var(--oj-muted)]">{visibleTrips.length} 次旅行</div>
       </div>
 
-      <div className="mt-12 border-t border-[var(--oj-line)]" />
-
-      <div className="mx-auto mt-10 w-full max-w-[1120px]">
-        <div className="relative">
-          <div className="absolute left-[22px] top-0 h-full w-px bg-[var(--oj-line)]" />
-
-          <div className="space-y-16 pb-10">
-            {groupedDays.map((day) => (
-              <section key={`day_${day.dayNumber}`} className="relative grid grid-cols-[110px_1fr] gap-10">
-                <div className="relative">
-                  <div className="absolute left-[6px] top-3 h-12 w-12 rounded-full border border-[var(--oj-khaki)] bg-[var(--oj-bg)]">
-                    <div className="flex h-full w-full items-center justify-center text-[10px] tracking-[0.22em] text-[var(--oj-muted)]">
-                      D{day.dayNumber}
-                    </div>
-                  </div>
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {visibleTrips.map((t) => {
+          const cover = firstCoverSrc(t)
+          const coverOptimizable = Boolean(cover && (cover.startsWith('http://') || cover.startsWith('https://')))
+          const active = t.id === activeTrip.id
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => JourneysActions.setActiveTrip(t.id)}
+              className={[
+                'overflow-hidden rounded-2xl border bg-white/60 text-left transition hover:bg-white',
+                active ? 'border-[#111]' : 'border-[var(--oj-line)]',
+              ].join(' ')}
+            >
+              <div className="aspect-[16/10] bg-[var(--oj-bg)]">
+                {cover ? (
+                  <Image
+                    src={cover}
+                    alt={t.name}
+                    width={1600}
+                    height={1000}
+                    className="h-full w-full object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    unoptimized={!coverOptimizable}
+                  />
+                ) : null}
+              </div>
+              <div className="p-4">
+                <div className="text-sm text-[var(--oj-muted)]">
+                  {t.startDate} — {t.endDate}
                 </div>
+                <div className="mt-2 text-[16px] font-medium text-[var(--oj-ink)]">{t.name}</div>
+                <div className="mt-3 text-xs text-[var(--oj-muted)]">{totalSpots(t)} 个地点</div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
 
-                <div>
-                  <div className="mb-8 text-center font-[var(--font-cormorant)] text-[20px] font-medium tracking-[0.06em] text-[var(--oj-ink-2)]">
-                    {day.title}
-                  </div>
+      <div className="mt-10 border-t border-[var(--oj-line)]" />
 
-                  <div className="grid grid-cols-2 gap-10">
-                    {day.spots.map((spot) => (
-                      <SpotCarousel key={spot.id} spot={spot} />
-                    ))}
-                  </div>
-                </div>
-              </section>
-            ))}
-          </div>
-        </div>
+      <div className="mt-8 space-y-10 pb-10">
+        {groupedDays.map((day) => (
+          <section key={`day_${day.dayNumber}`}>
+            <div className="flex items-baseline justify-between gap-6">
+              <div className="font-[var(--font-cormorant)] text-[20px] font-medium text-[var(--oj-ink-2)]">
+                {day.title}
+              </div>
+              <div className="text-xs tracking-[0.22em] text-[var(--oj-muted)]">DAY {day.dayNumber}</div>
+            </div>
+            <div className="mt-5 grid grid-cols-1 gap-8 md:grid-cols-2">
+              {day.spots.map((spot) => (
+                <SpotCarousel key={spot.id} spot={spot} />
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   )
